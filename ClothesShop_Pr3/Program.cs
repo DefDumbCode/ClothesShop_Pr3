@@ -53,25 +53,25 @@ app.MapPost("/api/auth/reg", async (pr3Context context, RegistrationRequest requ
 {
     if (context.Users.FirstOrDefault(u => u.Login == request.Login) != null)
     {
-        return Results.BadRequest(new { message = "Пользователь с таким логином уже существует" });
+        return Results.BadRequest(new { message = "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ" });
     }
 
     if (request.Password != request.PasswordRep)
     {
-        return Results.BadRequest(new { message = "Пароли не совпадают" });
+        return Results.BadRequest(new { message = "пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ" });
     }
 
     if (string.IsNullOrWhiteSpace(request.Password) ||
     string.IsNullOrWhiteSpace(request.PasswordRep) ||
     string.IsNullOrWhiteSpace(request.Login))
     {
-        return Results.BadRequest(new { message = "Обнаружены пустые данные" });
+        return Results.BadRequest(new { message = "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ" });
     }
 
     User newAccount = new User()
     {
         Login = request.Login,
-        RoleId = context.Roles.FirstOrDefault(r => r.Name == "Пользователь").Id,
+        RoleId = context.Roles.FirstOrDefault(r => r.Name == "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ").Id,
     };
     newAccount.HashPass = hasher.HashPassword(newAccount, request.Password);
 
@@ -114,7 +114,7 @@ app.MapGet("/api/me", (ClaimsPrincipal user) =>
 
 app.MapGet("/api/admin", () =>
 {
-    return Results.Ok("Раздел администратора");
+    return Results.Ok("пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ");
 }).RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Admin"));
 
 app.MapGet("/api/clothes", (pr3Context context) =>
