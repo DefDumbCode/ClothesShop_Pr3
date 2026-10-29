@@ -1,0 +1,80 @@
+﻿{
+   "CodeGenerationMode": 4,
+   "ContextClassName": "pr3Context",
+   "ContextNamespace": null,
+   "FilterSchemas": false,
+   "IncludeConnectionString": true,
+   "ModelNamespace": null,
+   "OutputContextPath": null,
+   "OutputPath": "Models",
+   "PreserveCasingWithRegex": true,
+   "ProjectRootNamespace": "ClothesShop_Pr3",
+   "Schemas": null,
+   "SelectedHandlebarsLanguage": 2,
+   "SelectedToBeGenerated": 0,
+   "T4TemplatePath": null,
+   "Tables": [
+      {
+         "Name": "[dbo].[Clothes]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ClothesSize]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ClothingTypes]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[OrderClothes]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Orders]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Roles]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Sizes]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Status]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Users]",
+         "ObjectType": 0
+      }
+   ],
+   "UiHint": null,
+   "UncountableWords": null,
+   "UseAsyncStoredProcedureCalls": true,
+   "UseBoolPropertiesWithoutDefaultSql": false,
+   "UseDatabaseNames": false,
+   "UseDatabaseNamesForRoutines": true,
+   "UseDateOnlyTimeOnly": true,
+   "UseDbContextSplitting": false,
+   "UseDecimalDataAnnotationForSprocResult": true,
+   "UseFluentApiOnly": true,
+   "UseHandleBars": false,
+   "UseHierarchyId": false,
+   "UseInflector": true,
+   "UseLegacyPluralizer": false,
+   "UseManyToManyEntity": false,
+   "UseNoDefaultConstructor": false,
+   "UseNoNavigations": false,
+   "UseNoObjectFilter": false,
+   "UseNodaTime": false,
+   "UseNullableReferences": false,
+   "UsePrefixNavigationNaming": false,
+   "UseSchemaFolders": false,
+   "UseSchemaNamespaces": false,
+   "UseSpatial": false,
+   "UseT4": false,
+   "UseT4Split": false
+}
