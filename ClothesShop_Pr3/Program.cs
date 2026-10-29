@@ -6,8 +6,10 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+
 builder.Services.AddDbContext<pr3Context>();
 var hasher = new PasswordHasher<User>();
 
@@ -71,7 +73,7 @@ app.MapPost("/api/auth/reg", async (pr3Context context, RegistrationRequest requ
     User newAccount = new User()
     {
         Login = request.Login,
-        RoleId = context.Roles.FirstOrDefault(r => r.Name == "������������").Id,
+        RoleId = context.Roles.FirstOrDefault(r => r.Name == "Manager")?.Id ?? 1,
     };
     newAccount.HashPass = hasher.HashPassword(newAccount, request.Password);
 
@@ -117,19 +119,24 @@ app.MapGet("/api/admin", () =>
     return Results.Ok("������ ��������������");
 }).RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Admin"));
 
+
 app.MapGet("/api/clothes", (pr3Context context) =>
 {
-    List<Clothe> stuff = context.Clothes.ToList();
-    return stuff;
+    List<Clothe> tuff = context.Clothes.ToList();
+    return Results.Json(tuff);
 });
 
-app.MapGet("/api/clothes", (pr3Context context, string search) =>
+app.MapGet("/api/clothes/{search}", (pr3Context context, string? search) =>
 {
     List<Clothe> tuff = context.Clothes.ToList();
-    tuff = tuff.Where(u => u.ClothingName.Contains(search)).ToList();
-    return tuff;
+    if (search != null)
+    {
+        tuff = tuff.Where(t => t.ClothingName.ToLower().Contains(search.ToLower())).ToList();
+    }
+    return Results.Json(tuff);
 });
 
+//app.MapPatch("/api/clothes", (pr3Context context, ))
 
 app.Run();
 
