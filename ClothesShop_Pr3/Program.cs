@@ -117,13 +117,13 @@ app.MapGet("/api/admin", () =>
     return Results.Ok("Раздел администратора");
 }).RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Admin"));
 
-app.MapGet("/clothes", (pr3Context context) =>
+app.MapGet("/api/clothes", (pr3Context context) =>
 {
     List<Clothe> stuff = context.Clothes.ToList();
     return stuff;
 });
 
-app.MapGet("/clothes", (pr3Context context, string search) =>
+app.MapGet("/api/clothes", (pr3Context context, string search) =>
 {
     List<Clothe> tuff = context.Clothes.ToList();
     tuff = tuff.Where(u => u.ClothingName.Contains(search)).ToList();
@@ -152,9 +152,4 @@ string CreateToken(User user)
             key, SecurityAlgorithms.HmacSha256));
 
     return new JwtSecurityTokenHandler().WriteToken(token);
-}
-
-internal record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
