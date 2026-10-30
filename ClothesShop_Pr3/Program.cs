@@ -136,7 +136,34 @@ app.MapGet("/api/clothes/{search}", (pr3Context context, string? search) =>
     return Results.Json(tuff);
 });
 
-//app.MapPatch("/api/clothes", (pr3Context context, ))
+app.MapPut("/api/clothes", async (pr3Context context, ClothesSize newClothesSize) =>
+{
+    ClothesSize? clothesSize = context.ClothesSizes.FirstOrDefault(cs => cs.Id == newClothesSize.Id);
+    
+    if(clothesSize == null)
+    {
+        return Results.NotFound(new { message = "Товар не найден" });
+    }
+
+    clothesSize.Quantity = newClothesSize.Quantity;
+    await context.SaveChangesAsync();
+    return Results.Json(clothesSize);
+}).RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Менеджер"));
+
+
+app.MapPatch("/api/clothes/{id}", async (pr3Context context, int id, bool isAvailable) =>
+{
+    Clothe? clothe= context.Clothes.FirstOrDefault(c => c.Id == id);
+
+    if (clothe == null)
+    {
+        return Results.NotFound(new { message = "Товар не найден" });
+    }
+
+    clothe.IsAvailable = isAvailable;
+    await context.SaveChangesAsync();
+    return Results.Json(clothe);
+}).RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Менеджер"));
 
 app.Run();
 
