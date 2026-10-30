@@ -11,7 +11,7 @@ public partial class User
 
     public string Phone { get; set; }
 
-    public string Adreess { get; set; }
+    public string Address { get; set; }
 
     public string Login { get; set; }
 

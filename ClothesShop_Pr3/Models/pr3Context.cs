@@ -37,7 +37,7 @@ public partial class pr3Context : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Data Source=NOTACOMP;Initial Catalog=07.10PR3;Integrated Security=True;Encrypt=True;Trust Server Certificate=True");
+        => optionsBuilder.UseSqlServer("Data Source=laptop-6ncuvg8v;Initial Catalog=pr3;Integrated Security=True;Encrypt=True;Trust Server Certificate=True");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -48,6 +48,7 @@ public partial class pr3Context : DbContext
                 .IsRequired()
                 .HasMaxLength(100);
             entity.Property(e => e.Description).IsRequired();
+            entity.Property(e => e.Price).HasColumnType("decimal(10, 2)");
             entity.Property(e => e.TypeId).HasColumnName("TypeID");
 
             entity.HasOne(d => d.Type).WithMany(p => p.Clothes)
@@ -59,6 +60,8 @@ public partial class pr3Context : DbContext
         modelBuilder.Entity<ClothesSize>(entity =>
         {
             entity.ToTable("ClothesSize");
+
+            entity.HasIndex(e => new { e.ClothesId, e.SizeId }, "UX_ClothesSize_Clothes_Size").IsUnique();
 
             entity.Property(e => e.Id).HasColumnName("ID");
             entity.Property(e => e.ClothesId).HasColumnName("ClothesID");
@@ -85,8 +88,15 @@ public partial class pr3Context : DbContext
 
         modelBuilder.Entity<Order>(entity =>
         {
+            entity.HasIndex(e => e.StatusId, "IX_Orders_Status");
+
+            entity.HasIndex(e => new { e.UserId, e.StatusId }, "IX_Orders_User_Status");
+
             entity.Property(e => e.Id).HasColumnName("ID");
-            entity.Property(e => e.CreatedAt).HasColumnType("datetime");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("(getutcdate())")
+                .HasAnnotation("Relational:DefaultConstraintName", "DF_Orders_CreatedAt")
+                .HasColumnType("datetime");
             entity.Property(e => e.StatusId).HasColumnName("StatusID");
             entity.Property(e => e.UserId).HasColumnName("UserID");
 
@@ -103,9 +113,15 @@ public partial class pr3Context : DbContext
 
         modelBuilder.Entity<OrderClothe>(entity =>
         {
+            entity.HasIndex(e => new { e.OrderId, e.ClothesSizeId }, "UX_OrderClothes_Order_Size").IsUnique();
+
             entity.Property(e => e.Id).HasColumnName("ID");
             entity.Property(e => e.ClothesSizeId).HasColumnName("ClothesSizeID");
             entity.Property(e => e.OrderId).HasColumnName("OrderID");
+            entity.Property(e => e.Quantity)
+                .HasDefaultValue(1)
+                .HasAnnotation("Relational:DefaultConstraintName", "DF_OrderClothes_Quantity");
+            entity.Property(e => e.UnitPrice).HasColumnType("decimal(10, 2)");
 
             entity.HasOne(d => d.ClothesSize).WithMany(p => p.OrderClothes)
                 .HasForeignKey(d => d.ClothesSizeId)
@@ -146,10 +162,12 @@ public partial class pr3Context : DbContext
 
         modelBuilder.Entity<User>(entity =>
         {
+            entity.HasIndex(e => e.Login, "UX_Users_Login").IsUnique();
+
             entity.Property(e => e.Id).HasColumnName("ID");
-            entity.Property(e => e.Adreess)
+            entity.Property(e => e.Address)
                 .IsRequired()
-                .HasMaxLength(50);
+                .HasMaxLength(250);
             entity.Property(e => e.HashPass).IsRequired();
             entity.Property(e => e.Login)
                 .IsRequired()
