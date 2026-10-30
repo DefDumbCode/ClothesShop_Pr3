@@ -55,25 +55,29 @@ app.MapPost("/api/auth/reg", async (pr3Context context, RegistrationRequest requ
 {
     if (context.Users.FirstOrDefault(u => u.Login == request.Login) != null)
     {
-        return Results.BadRequest(new { message = "������������ � ����� ������� ��� ����������" });
+        return Results.BadRequest(new { message = "Аккаунт с таким логином уже существует" });
     }
 
     if (request.Password != request.PasswordRep)
     {
-        return Results.BadRequest(new { message = "������ �� ���������" });
+        return Results.BadRequest(new { message = "Пароли не совпадают" });
     }
 
     if (string.IsNullOrWhiteSpace(request.Password) ||
     string.IsNullOrWhiteSpace(request.PasswordRep) ||
-    string.IsNullOrWhiteSpace(request.Login))
+    string.IsNullOrWhiteSpace(request.Login) ||
+    string.IsNullOrWhiteSpace(request.Phone) ||
+    string.IsNullOrWhiteSpace(request.Address))
     {
-        return Results.BadRequest(new { message = "���������� ������ ������" });
+        return Results.BadRequest(new { message = "Поля не могут быть пустыми" });
     }
 
     User newAccount = new User()
     {
         Login = request.Login,
         RoleId = context.Roles.FirstOrDefault(r => r.Name == "Manager")?.Id ?? 1,
+        Phone = request.Phone,
+        Address = request.Address
     };
     newAccount.HashPass = hasher.HashPassword(newAccount, request.Password);
 

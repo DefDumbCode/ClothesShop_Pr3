@@ -19,7 +19,7 @@ public partial class Clothe
 
     public bool IsAvailable { get; set; }
 
-    public double Price { get; set; }
+    public decimal Price { get; set; }
 
     public virtual ICollection<ClothesSize> ClothesSizes { get; set; } = new List<ClothesSize>();
 
