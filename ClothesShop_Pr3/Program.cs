@@ -1,6 +1,7 @@
 using ClothesShop_Pr3;
 using ClothesShop_Pr3.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -9,6 +10,11 @@ using System.Security.Cryptography;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+});
 
 builder.Services.AddDbContext<pr3Context>();
 var hasher = new PasswordHasher<User>();
@@ -109,6 +115,11 @@ app.MapPost("/api/auth/login", (pr3Context context, LoginRequest request) =>
     });
 }).AllowAnonymous();
 
+app.MapPost("/api/order", async (pr3Context context, Order NewOrder, ) =>
+{
+
+}).RequireAuthorization();
+
 app.MapGet("/api/me", (ClaimsPrincipal user) =>
 {
     return Results.Ok(new
@@ -122,7 +133,6 @@ app.MapGet("/api/admin", () =>
 {
     return Results.Ok("������ ��������������");
 }).RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Admin"));
-
 
 app.MapGet("/api/clothes", (pr3Context context) =>
 {
