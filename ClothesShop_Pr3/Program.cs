@@ -115,7 +115,7 @@ app.MapPost("/api/auth/login", (pr3Context context, LoginRequest request) =>
     });
 }).AllowAnonymous();
 
-app.MapPost("/api/order", async (pr3Context context, Order NewOrder, ) =>
+app.MapPost("/api/order", async (pr3Context context, Order NewOrder) =>
 {
 
 }).RequireAuthorization();
