@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "ClothesShop_Pr3": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:57454;http://localhost:57455"
+    }
+  }
+}
