@@ -2,6 +2,7 @@ using ClothesShop_Pr3;
 using ClothesShop_Pr3.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -76,7 +77,7 @@ app.MapPost("/api/auth/reg", async (pr3Context context, RegistrationRequest requ
     User newAccount = new User()
     {
         Login = request.Login,
-        RoleId = context.Roles.FirstOrDefault(r => r.Name == "Manager")?.Id ?? 1,
+        RoleId = context.Roles.FirstOrDefault(r => r.Name == "Менеджер")?.Id ?? 1,
         Phone = request.Phone,
         Address = request.Address
     };
@@ -90,7 +91,7 @@ app.MapPost("/api/auth/reg", async (pr3Context context, RegistrationRequest requ
 
 app.MapPost("/api/auth/login", (pr3Context context, LoginRequest request) =>
 {
-    var account = context.Users.FirstOrDefault(
+    var account = context.Users.Include(u => u.Role).FirstOrDefault(
         a => a.Login == request.Login);
 
     if (account == null ||
@@ -268,7 +269,7 @@ string CreateToken(User user)
     {
         new Claim("sub", user.Id.ToString()),
         new Claim("name", user.Login),
-        new Claim("role", user.Role.Name)
+        new Claim("rolename", user.Role.Name.ToString())
     };
 
     var token = new JwtSecurityToken(
