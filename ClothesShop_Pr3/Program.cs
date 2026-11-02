@@ -11,6 +11,7 @@ using System.Text.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<pr3Context>();
+
 var hasher = new PasswordHasher<User>();
 
 // Add services to the container.
@@ -140,6 +141,95 @@ app.MapGet("/api/clothes/{search}", (pr3Context context, string? search) =>
     return Results.Json(tuff);
 });
 
+// получить заказы с определенным статусом
+
+app.MapGet("/api/orders/by-status/{statusId}", async (pr3Context context, int statusId) =>
+{
+    Status? status = await context.Statuses
+        .FirstOrDefaultAsync(s => s.Id == statusId);
+
+    if (status == null)
+    {
+        return Results.NotFound(new { message = "Статус не найден" });
+    }
+
+    var orders = await context.Orders
+        .Where(o => o.StatusId == statusId)
+        .Select(o => new
+        {
+            o.Id,
+            o.CreatedAt,
+            o.StatusId,
+            o.UserId
+        })
+        .ToListAsync();
+
+    return Results.Json(orders);
+}).RequireAuthorization();
+
+
+// получить заказы определенного пользователя
+
+app.MapGet("/api/orders/by-user/{userId}", async (pr3Context context, int userId) =>
+{
+    User? user = await context.Users
+        .FirstOrDefaultAsync(u => u.Id == userId);
+
+    if (user == null)
+    {
+        return Results.NotFound(new { message = "Покупатель не найден" });
+    }
+
+    var orders = await context.Orders
+        .Where(o => o.UserId == userId)
+        .Select(o => new
+        {
+            o.Id,
+            o.CreatedAt,
+            o.StatusId,
+            o.UserId
+        })
+        .ToListAsync();
+
+    return Results.Json(orders);
+}).RequireAuthorization();
+
+
+
+// (менеджеру) изменить статус заказа
+
+app.MapPatch("/api/orders/{id}", async (pr3Context context, int id, int statusId) =>
+{
+    Order? order = await context.Orders
+        .FirstOrDefaultAsync(o => o.Id == id);
+
+    if (order == null)
+    {
+        return Results.NotFound(new { message = "Заказ не найден" });
+    }
+
+    Status? status = await context.Statuses
+        .FirstOrDefaultAsync(s => s.Id == statusId);
+
+    if (status == null)
+    {
+        return Results.BadRequest(new { message = "Статус не существует" });
+    }
+
+    order.StatusId = statusId;
+
+    await context.SaveChangesAsync();
+
+    return Results.Json(new
+    {
+        order.Id,
+        order.CreatedAt,
+        order.StatusId,
+        order.UserId
+    });
+}).RequireAuthorization(policy =>
+    policy.RequireAuthenticatedUser().RequireRole("Менеджер"));
+
 app.MapPut("/api/clothes", async (pr3Context context, ClothesSize newClothesSize) =>
 {
     ClothesSize? clothesSize = context.ClothesSizes.FirstOrDefault(cs => cs.Id == newClothesSize.Id);
@@ -191,3 +281,13 @@ string CreateToken(User user)
 
     return new JwtSecurityTokenHandler().WriteToken(token);
 }
+public record LoginRequest(
+    string Login,
+    string Password);
+
+public record RegistrationRequest(
+    string Login,
+    string Password,
+    string PasswordRep,
+    string Phone,
+    string Address);
