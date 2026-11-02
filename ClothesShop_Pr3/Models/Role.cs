@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace  ClothesShop_Pr3.Models.Models;
+namespace ClothesShop_Pr3.Models;
 
 public partial class Role
 {

@@ -1,19 +1,20 @@
+using ClothesShop_Pr3;
+using ClothesShop_Pr3.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
-using ClothesShop_Pr3.Models;
-using ClothesShop_Pr3.Models.Models;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.Data.SqlClient;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<pr3Context>();
 
 var hasher = new PasswordHasher<User>();
+
+// Add services to the container.
 
 var key = new SymmetricSecurityKey(
     RandomNumberGenerator.GetBytes(32));
@@ -51,51 +52,94 @@ var app = builder.Build();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapPost("/api/auth/login", async (pr3Context context, LoginRequest request) =>
+app.MapPost("/api/auth/reg", async (pr3Context context, RegistrationRequest request) =>
 {
-    if (string.IsNullOrWhiteSpace(request.Login) ||
+    if (context.Users.FirstOrDefault(u => u.Login == request.Login) != null)
+    {
+        return Results.BadRequest(new { message = "Аккаунт с таким логином уже существует" });
+    }
+
+    if (request.Password != request.PasswordRep)
+    {
+        return Results.BadRequest(new { message = "Пароли не совпадают" });
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Password) ||
+    string.IsNullOrWhiteSpace(request.PasswordRep) ||
+    string.IsNullOrWhiteSpace(request.Login) ||
+    string.IsNullOrWhiteSpace(request.Phone) ||
+    string.IsNullOrWhiteSpace(request.Address))
+    {
+        return Results.BadRequest(new { message = "Поля не могут быть пустыми" });
+    }
+
+    User newAccount = new User()
+    {
+        Login = request.Login,
+        RoleId = context.Roles.FirstOrDefault(r => r.Name == "Manager")?.Id ?? 1,
+        Phone = request.Phone,
+        Address = request.Address
+    };
+    newAccount.HashPass = hasher.HashPassword(newAccount, request.Password);
+
+    context.Users.Add(newAccount);
+    context.SaveChanges();
+    return Results.Created($"api/users/{newAccount.Id}", newAccount);
+
+}).AllowAnonymous();
+
+app.MapPost("/api/auth/login", (pr3Context context, LoginRequest request) =>
+{
+    var account = context.Users.FirstOrDefault(
+        a => a.Login == request.Login);
+
+    if (account == null ||
         string.IsNullOrWhiteSpace(request.Password))
-    {
-        return Results.BadRequest(new { message = "Введите логин и пароль" });
-    }
-
-    string login = request.Login.Trim();
-
-    User? account = await context.Users
-        .FirstOrDefaultAsync(u => u.Login == login);
-
-    if (account == null)
-    {
-        return Results.Unauthorized();
-    }
+        return Results.Challenge();
 
     var result = hasher.VerifyHashedPassword(
-        account,
-        account.HashPass,
-        request.Password);
+        account, account.HashPass, request.Password);
 
     if (result == PasswordVerificationResult.Failed)
-    {
-        return Results.Unauthorized();
-    }
-
-    Role? role = await context.Roles
-        .FirstOrDefaultAsync(r => r.Id == account.RoleId);
-
-    if (role == null)
-    {
-        return Results.Problem("Роль пользователя не найдена");
-    }
+        return Results.Challenge();
 
     return Results.Ok(new
     {
-        access_token = CreateToken(account, role.Name),
-        token_type = "Bearer",
-        userId = account.Id,
-        role = role.Name
+        access_token = CreateToken(account),
+        token_type = "Bearer"
     });
 }).AllowAnonymous();
 
+app.MapGet("/api/me", (ClaimsPrincipal user) =>
+{
+    return Results.Ok(new
+    {
+        login = user.Identity?.Name,
+        role = user.FindFirst("role")?.Value
+    });
+}).RequireAuthorization();
+
+app.MapGet("/api/admin", () =>
+{
+    return Results.Ok("������ ��������������");
+}).RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Admin"));
+
+
+app.MapGet("/api/clothes", (pr3Context context) =>
+{
+    List<Clothe> tuff = context.Clothes.ToList();
+    return Results.Json(tuff);
+});
+
+app.MapGet("/api/clothes/{search}", (pr3Context context, string? search) =>
+{
+    List<Clothe> tuff = context.Clothes.ToList();
+    if (search != null)
+    {
+        tuff = tuff.Where(t => t.ClothingName.ToLower().Contains(search.ToLower())).ToList();
+    }
+    return Results.Json(tuff);
+});
 
 // получить заказы с определенным статусом
 
@@ -151,93 +195,6 @@ app.MapGet("/api/orders/by-user/{userId}", async (pr3Context context, int userId
 }).RequireAuthorization();
 
 
-// зарегать обычного пользователя
-
-app.MapPost("/api/auth/reg", async (pr3Context context, RegistrationRequest request) =>
-{
-    if (string.IsNullOrWhiteSpace(request.Login) ||
-        string.IsNullOrWhiteSpace(request.Password) ||
-        string.IsNullOrWhiteSpace(request.PasswordRep) ||
-        string.IsNullOrWhiteSpace(request.Phone) ||
-        string.IsNullOrWhiteSpace(request.Address))
-    {
-        return Results.BadRequest(new { message = "Поля не могут быть пустыми" });
-    }
-
-    if (request.Password != request.PasswordRep)
-    {
-        return Results.BadRequest(new { message = "Пароли не совпадают" });
-    }
-
-    if (request.Password.Length < 8)
-    {
-        return Results.BadRequest(new { message = "Пароль должен содержать минимум 8 символов" });
-    }
-
-    string login = request.Login.Trim();
-    string phone = request.Phone.Trim();
-    string address = request.Address.Trim();
-
-    if (login.Length > 50 || phone.Length > 20 || address.Length > 250)
-    {
-        return Results.BadRequest(new
-        {
-            message = "Максимальная длина: логин — 50, телефон — 20, адрес — 250 символов"
-        });
-    }
-
-    User? account = await context.Users
-        .FirstOrDefaultAsync(u => u.Login == login);
-
-    if (account != null)
-    {
-        return Results.BadRequest(new { message = "Аккаунт с таким логином уже существует" });
-    }
-
-    Role? role = await context.Roles
-        .FirstOrDefaultAsync(r => r.Name == "Пользователь");
-
-    if (role == null)
-    {
-        return Results.Problem("В БД отсутствует роль Пользователь");
-    }
-
-    User newAccount = new User()
-    {
-        Login = login,
-        Phone = phone,
-        Address = address,
-        RoleId = role.Id
-    };
-
-    newAccount.HashPass = hasher.HashPassword(
-        newAccount,
-        request.Password);
-
-    context.Users.Add(newAccount);
-
-    try
-    {
-        await context.SaveChangesAsync();
-    }
-    catch (DbUpdateException ex)
-        when (ex.InnerException is SqlException sql &&
-              (sql.Number == 2601 || sql.Number == 2627))
-    {
-        return Results.BadRequest(new { message = "Аккаунт с таким логином уже существует" });
-    }
-
-    return Results.Json(new
-    {
-        newAccount.Id,
-        newAccount.Login,
-        newAccount.Phone,
-        newAccount.Address,
-        newAccount.RoleId
-    }, statusCode: 201);
-
-}).AllowAnonymous();
-
 
 // (менеджеру) изменить статус заказа
 
@@ -273,14 +230,45 @@ app.MapPatch("/api/orders/{id}", async (pr3Context context, int id, int statusId
 }).RequireAuthorization(policy =>
     policy.RequireAuthenticatedUser().RequireRole("Менеджер"));
 
+app.MapPut("/api/clothes", async (pr3Context context, ClothesSize newClothesSize) =>
+{
+    ClothesSize? clothesSize = context.ClothesSizes.FirstOrDefault(cs => cs.Id == newClothesSize.Id);
+    
+    if(clothesSize == null)
+    {
+        return Results.NotFound(new { message = "Товар не найден" });
+    }
+
+    clothesSize.Quantity = newClothesSize.Quantity;
+    await context.SaveChangesAsync();
+    return Results.Json(clothesSize);
+}).RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Менеджер"));
+
+
+app.MapPatch("/api/clothes/{id}", async (pr3Context context, int id, bool isAvailable) =>
+{
+    Clothe? clothe= context.Clothes.FirstOrDefault(c => c.Id == id);
+
+    if (clothe == null)
+    {
+        return Results.NotFound(new { message = "Товар не найден" });
+    }
+
+    clothe.IsAvailable = isAvailable;
+    await context.SaveChangesAsync();
+    return Results.Json(clothe);
+}).RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Менеджер"));
+
 app.Run();
-string CreateToken(User user, string role)
+
+
+string CreateToken(User user)
 {
     var claims = new[]
     {
         new Claim("sub", user.Id.ToString()),
         new Claim("name", user.Login),
-        new Claim("role", role)
+        new Claim("role", user.Role.Name)
     };
 
     var token = new JwtSecurityToken(
@@ -289,8 +277,7 @@ string CreateToken(User user, string role)
         claims: claims,
         expires: DateTime.UtcNow.AddMinutes(15),
         signingCredentials: new SigningCredentials(
-            key,
-            SecurityAlgorithms.HmacSha256));
+            key, SecurityAlgorithms.HmacSha256));
 
     return new JwtSecurityTokenHandler().WriteToken(token);
 }

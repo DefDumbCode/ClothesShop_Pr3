@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 
-namespace  ClothesShop_Pr3.Models.Models;
+namespace ClothesShop_Pr3.Models;
 
 public partial class pr3Context : DbContext
 {
@@ -37,7 +37,7 @@ public partial class pr3Context : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Data Source=DESKTOP-5Q6T8JB;Initial Catalog=07.10PR3;Integrated Security=True");
+        => optionsBuilder.UseSqlServer("Data Source=laptop-6ncuvg8v;Initial Catalog=pr3;Integrated Security=True;Encrypt=True;Trust Server Certificate=True");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -95,6 +95,7 @@ public partial class pr3Context : DbContext
             entity.Property(e => e.Id).HasColumnName("ID");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("(getutcdate())")
+                .HasAnnotation("Relational:DefaultConstraintName", "DF_Orders_CreatedAt")
                 .HasColumnType("datetime");
             entity.Property(e => e.StatusId).HasColumnName("StatusID");
             entity.Property(e => e.UserId).HasColumnName("UserID");
@@ -117,7 +118,9 @@ public partial class pr3Context : DbContext
             entity.Property(e => e.Id).HasColumnName("ID");
             entity.Property(e => e.ClothesSizeId).HasColumnName("ClothesSizeID");
             entity.Property(e => e.OrderId).HasColumnName("OrderID");
-            entity.Property(e => e.Quantity).HasDefaultValue(1);
+            entity.Property(e => e.Quantity)
+                .HasDefaultValue(1)
+                .HasAnnotation("Relational:DefaultConstraintName", "DF_OrderClothes_Quantity");
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(10, 2)");
 
             entity.HasOne(d => d.ClothesSize).WithMany(p => p.OrderClothes)
