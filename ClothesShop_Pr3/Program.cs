@@ -3,6 +3,7 @@ using ClothesShop_Pr3.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -95,7 +96,7 @@ app.MapPost("/api/auth/reg", async (pr3Context context, RegistrationRequest requ
 
 app.MapPost("/api/auth/login", (pr3Context context, LoginRequest request) =>
 {
-    var account = context.Users.FirstOrDefault(
+    var account = context.Users.Include(u => u.Role).FirstOrDefault(
         a => a.Login == request.Login);
 
     if (account == null ||
@@ -110,14 +111,42 @@ app.MapPost("/api/auth/login", (pr3Context context, LoginRequest request) =>
 
     return Results.Ok(new
     {
-        access_token = CreateToken(account),
+        access_token = CreateToken(account, context),
         token_type = "Bearer"
     });
 }).AllowAnonymous();
 
-app.MapPost("/api/order", async (pr3Context context, Order NewOrder) =>
+app.MapPost("/api/order", async (pr3Context context, List<OrderRequest> request, ClaimsPrincipal user) =>
 {
+    if (!int.TryParse(user.FindFirst("sub")?.Value, out int u))
+    {
+        return Results.BadRequest("Аккаунт не найден");
+    }
 
+        Order newOrder = new Order
+        {
+            CreatedAt = DateTime.Now,
+            StatusId = 1,
+            UserId = u
+        };
+
+    context.Orders.Add(newOrder);
+    await context.SaveChangesAsync();
+
+    foreach(var req in request)
+    {
+        OrderClothe beb = new OrderClothe
+        {
+            OrderId = newOrder.Id,
+            ClothesSizeId = req.ClotheID,
+            Quantity = req.Quantity
+        };
+
+        context.OrderClothes.Add(beb);
+        
+    }
+    await context.SaveChangesAsync();
+    return Results.Created($"api/order/{newOrder.Id}", newOrder);
 }).RequireAuthorization();
 
 app.MapGet("/api/me", (ClaimsPrincipal user) =>
@@ -182,7 +211,7 @@ app.MapPatch("/api/clothes/{id}", async (pr3Context context, int id, bool isAvai
 app.Run();
 
 
-string CreateToken(User user)
+string CreateToken(User user, pr3Context context)
 {
     var claims = new[]
     {
