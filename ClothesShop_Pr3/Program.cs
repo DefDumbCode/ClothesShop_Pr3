@@ -1,4 +1,4 @@
-using ClothesShop_Pr3;
+using ClothesShop_Pr3.DTO;
 using ClothesShop_Pr3.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -10,6 +10,11 @@ using System.Security.Cryptography;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+});
 
 builder.Services.AddDbContext<pr3Context>();
 
@@ -77,7 +82,7 @@ app.MapPost("/api/auth/reg", async (pr3Context context, RegistrationRequest requ
     User newAccount = new User()
     {
         Login = request.Login,
-        RoleId = context.Roles.FirstOrDefault(r => r.Name == "Менеджер")?.Id ?? 1,
+        RoleId = context.Roles.FirstOrDefault(r => r.Name == "Пользователь")?.Id ?? 1,
         Phone = request.Phone,
         Address = request.Address
     };
@@ -89,6 +94,7 @@ app.MapPost("/api/auth/reg", async (pr3Context context, RegistrationRequest requ
 
 }).AllowAnonymous();
 
+// авторизация
 app.MapPost("/api/auth/login", (pr3Context context, LoginRequest request) =>
 {
     var account = context.Users.Include(u => u.Role).FirstOrDefault(
@@ -111,6 +117,7 @@ app.MapPost("/api/auth/login", (pr3Context context, LoginRequest request) =>
     });
 }).AllowAnonymous();
 
+// страница пользователя
 app.MapGet("/api/me", (ClaimsPrincipal user) =>
 {
     return Results.Ok(new
@@ -120,21 +127,48 @@ app.MapGet("/api/me", (ClaimsPrincipal user) =>
     });
 }).RequireAuthorization();
 
+// страница администратора (менеджера)
 app.MapGet("/api/admin", () =>
 {
-    return Results.Ok("������ ��������������");
-}).RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Admin"));
+    return Results.Ok("Привет, менеджер! Красивые ножки");
+}).RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Менеджер"));
 
-
+// вывод всех вещей
 app.MapGet("/api/clothes", (pr3Context context) =>
 {
-    List<Clothe> tuff = context.Clothes.ToList();
+    List<ClothesDto> tuff = context.Clothes.Select(c => new ClothesDto(
+        c.ClothingName,
+        c.Description,
+        c.SaleQuantity,
+        c.Type.TypeName,
+        c.Price,
+        c.ClothesSizes.Select(cs => new ClothesSizeDto(
+            cs.Size.SizeMark,
+            cs.Size.SizeNumber,
+            cs.Quantity
+            )).ToList(),
+        c.IsAvailable
+    )).ToList();
     return Results.Json(tuff);
 });
 
+// поиск одежды по названию
 app.MapGet("/api/clothes/{search}", (pr3Context context, string? search) =>
 {
-    List<Clothe> tuff = context.Clothes.ToList();
+    List<ClothesDto> tuff = context.Clothes.Select(c => new ClothesDto(
+        c.ClothingName,
+        c.Description,
+        c.SaleQuantity,
+        c.Type.TypeName,
+        c.Price,
+        c.ClothesSizes.Select(cs => new ClothesSizeDto(
+            cs.Size.SizeMark,
+            cs.Size.SizeNumber,
+            cs.Quantity
+            )).ToList(),
+        c.IsAvailable
+    )).ToList();
+
     if (search != null)
     {
         tuff = tuff.Where(t => t.ClothingName.ToLower().Contains(search.ToLower())).ToList();
@@ -143,7 +177,6 @@ app.MapGet("/api/clothes/{search}", (pr3Context context, string? search) =>
 });
 
 // получить заказы с определенным статусом
-
 app.MapGet("/api/orders/by-status/{statusId}", async (pr3Context context, int statusId) =>
 {
     Status? status = await context.Statuses
@@ -154,23 +187,29 @@ app.MapGet("/api/orders/by-status/{statusId}", async (pr3Context context, int st
         return Results.NotFound(new { message = "Статус не найден" });
     }
 
-    var orders = await context.Orders
-        .Where(o => o.StatusId == statusId)
-        .Select(o => new
-        {
-            o.Id,
-            o.CreatedAt,
-            o.StatusId,
-            o.UserId
-        })
-        .ToListAsync();
+    List<OrderDto> orders = context.Orders.Where(o => o.Status.Id == statusId).Select(o => new OrderDto(
+            o.User.Login,
+            o.Status.Name,
+            o.OrderClothes.Select(oc => new ClotheDto(
+                    oc.ClothesSize.Clothes.ClothingName,
+                    oc.ClothesSize.Clothes.Description,
+                    oc.ClothesSize.Clothes.SaleQuantity,
+                    oc.ClothesSize.Clothes.Type.TypeName,
+                    oc.ClothesSize.Clothes.Price,
+                    new ClothesSizeDto(
+                            oc.ClothesSize.Size.SizeMark,
+                            oc.ClothesSize.Size.SizeNumber,
+                            oc.ClothesSize.Quantity
+                        )
+                )).ToList(),
+            o.CreatedAt
+        )).ToList();
 
     return Results.Json(orders);
 }).RequireAuthorization();
 
 
 // получить заказы определенного пользователя
-
 app.MapGet("/api/orders/by-user/{userId}", async (pr3Context context, int userId) =>
 {
     User? user = await context.Users
@@ -181,16 +220,23 @@ app.MapGet("/api/orders/by-user/{userId}", async (pr3Context context, int userId
         return Results.NotFound(new { message = "Покупатель не найден" });
     }
 
-    var orders = await context.Orders
-        .Where(o => o.UserId == userId)
-        .Select(o => new
-        {
-            o.Id,
-            o.CreatedAt,
-            o.StatusId,
-            o.UserId
-        })
-        .ToListAsync();
+    List<OrderDto> orders = context.Orders.Where(o => o.User.Id == userId).Select(o => new OrderDto(
+            o.User.Login,
+            o.Status.Name,
+            o.OrderClothes.Select(oc => new ClotheDto(
+                    oc.ClothesSize.Clothes.ClothingName,
+                    oc.ClothesSize.Clothes.Description,
+                    oc.ClothesSize.Clothes.SaleQuantity,
+                    oc.ClothesSize.Clothes.Type.TypeName,
+                    oc.ClothesSize.Clothes.Price,
+                    new ClothesSizeDto(
+                            oc.ClothesSize.Size.SizeMark,
+                            oc.ClothesSize.Size.SizeNumber,
+                            oc.ClothesSize.Quantity
+                        )
+                )).ToList(),
+            o.CreatedAt
+        )).ToList();
 
     return Results.Json(orders);
 }).RequireAuthorization();
@@ -198,55 +244,73 @@ app.MapGet("/api/orders/by-user/{userId}", async (pr3Context context, int userId
 
 
 // (менеджеру) изменить статус заказа
-
-app.MapPatch("/api/orders/{id}", async (pr3Context context, int id, int statusId) =>
+app.MapPatch("/api/orders/", async (pr3Context context, ChangeOrderStatus request) =>
 {
-    Order? order = await context.Orders
-        .FirstOrDefaultAsync(o => o.Id == id);
+    Order? order = await context.Orders.FirstOrDefaultAsync(o => o.Id == request.OrderId);
 
     if (order == null)
     {
         return Results.NotFound(new { message = "Заказ не найден" });
     }
 
-    Status? status = await context.Statuses
-        .FirstOrDefaultAsync(s => s.Id == statusId);
+    Status? status = context.Statuses
+        .FirstOrDefault(s => s.Id == request.StatusId);
 
     if (status == null)
     {
         return Results.BadRequest(new { message = "Статус не существует" });
     }
 
-    order.StatusId = statusId;
+    order.StatusId = request.StatusId;
 
     await context.SaveChangesAsync();
 
-    return Results.Json(new
-    {
-        order.Id,
-        order.CreatedAt,
-        order.StatusId,
-        order.UserId
-    });
+    return Results.Json(context.Orders.Where(o => o.Id == order.Id)
+        .Select(o => new OrderDto(
+            o.User.Login,
+            o.Status.Name,
+            o.OrderClothes.Select(oc => new ClotheDto(
+                    oc.ClothesSize.Clothes.ClothingName,
+                    oc.ClothesSize.Clothes.Description,
+                    oc.ClothesSize.Clothes.SaleQuantity,
+                    oc.ClothesSize.Clothes.Type.TypeName,
+                    oc.ClothesSize.Clothes.Price,
+                    new ClothesSizeDto(
+                            oc.ClothesSize.Size.SizeMark,
+                            oc.ClothesSize.Size.SizeNumber,
+                            oc.ClothesSize.Quantity
+                        )
+                )).ToList(),
+            o.CreatedAt
+        )).FirstOrDefault());
 }).RequireAuthorization(policy =>
     policy.RequireAuthenticatedUser().RequireRole("Менеджер"));
 
-app.MapPut("/api/clothes", async (pr3Context context, ClothesSize newClothesSize) =>
+// (менеджеру) изменение количества вещей опрделенного размера
+app.MapPatch("/api/clothes/sizes/{id}", async (pr3Context context, int id, ChangeClotheSizeQuantity request) =>
 {
-    ClothesSize? clothesSize = context.ClothesSizes.FirstOrDefault(cs => cs.Id == newClothesSize.Id);
+    ClothesSize? clothesSize = await context.ClothesSizes
+        .FirstOrDefaultAsync(cs => cs.Id == id);
     
     if(clothesSize == null)
     {
         return Results.NotFound(new { message = "Товар не найден" });
     }
 
-    clothesSize.Quantity = newClothesSize.Quantity;
+    clothesSize.Quantity = request.Quantity;
     await context.SaveChangesAsync();
-    return Results.Json(clothesSize);
+    return Results.Json(context.ClothesSizes
+        .Where(cs => cs.Id == clothesSize.Id)
+        .Select(cs => new ClothesSizeDto(
+            cs.Size.SizeMark,
+            cs.Size.SizeNumber,
+            cs.Quantity
+        )).FirstOrDefault());
+
 }).RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Менеджер"));
 
-
-app.MapPatch("/api/clothes/{id}", async (pr3Context context, int id, bool isAvailable) =>
+// (менеджеру) изменение достпности для продажи
+app.MapPatch("/api/clothes/{id}/availability", async (pr3Context context, int id, ChangeClotheAvailabilityRequest request) =>
 {
     Clothe? clothe= context.Clothes.FirstOrDefault(c => c.Id == id);
 
@@ -255,9 +319,24 @@ app.MapPatch("/api/clothes/{id}", async (pr3Context context, int id, bool isAvai
         return Results.NotFound(new { message = "Товар не найден" });
     }
 
-    clothe.IsAvailable = isAvailable;
+    clothe.IsAvailable = request.IsAvailable;
     await context.SaveChangesAsync();
-    return Results.Json(clothe);
+
+    return Results.Json(context.Clothes
+        .Where(c => c.Id == clothe.Id)
+        .Select(c => new ClothesDto(
+            c.ClothingName,
+            c.Description,
+            c.SaleQuantity,
+            c.Type.TypeName,
+            c.Price,
+            c.ClothesSizes.Select(cs => new ClothesSizeDto(
+                cs.Size.SizeMark,
+                cs.Size.SizeNumber,
+                cs.Quantity
+                )).ToList(),
+            c.IsAvailable
+    )).FirstOrDefault());
 }).RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Менеджер"));
 
 app.Run();
@@ -269,7 +348,7 @@ string CreateToken(User user)
     {
         new Claim("sub", user.Id.ToString()),
         new Claim("name", user.Login),
-        new Claim("rolename", user.Role.Name.ToString())
+        new Claim("role", user.Role.Name.ToString())
     };
 
     var token = new JwtSecurityToken(
@@ -282,13 +361,3 @@ string CreateToken(User user)
 
     return new JwtSecurityTokenHandler().WriteToken(token);
 }
-public record LoginRequest(
-    string Login,
-    string Password);
-
-public record RegistrationRequest(
-    string Login,
-    string Password,
-    string PasswordRep,
-    string Phone,
-    string Address);
