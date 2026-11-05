@@ -13,10 +13,6 @@ public partial class OrderClothe
 
     public int ClothesSizeId { get; set; }
 
-    public int Quantity { get; set; }
-
-    public decimal UnitPrice { get; set; }
-
     public virtual ClothesSize ClothesSize { get; set; }
 
     public virtual Order Order { get; set; }
