@@ -1,3 +1,4 @@
+using ClothesShop_Pr3;
 using ClothesShop_Pr3.DTO;
 using ClothesShop_Pr3.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -148,7 +149,23 @@ app.MapPost("/api/order", async (pr3Context context, List<OrderRequest> request,
         
     }
     await context.SaveChangesAsync();
-    return Results.Created($"api/order/{newOrder.Id}", newOrder);
+
+    OrderDto? newOrderDto = context.Orders.Where(no => no.Id == newOrder.Id).Select(no => new OrderDto(
+        no.User.Login,
+        no.Status.Name,
+        no.OrderClothes.Select(oc => new ClotheDto(
+            oc.ClothesSize.Clothes.ClothingName,
+            oc.ClothesSize.Clothes.Description,
+            oc.ClothesSize.Clothes.SaleQuantity,
+            oc.ClothesSize.Clothes.Type.TypeName,
+            oc.ClothesSize.Clothes.Price,
+            new ClothesSizeDto(
+                oc.ClothesSize.Size.SizeMark,
+                oc.ClothesSize.Size.SizeNumber,
+                oc.ClothesSize.Quantity))).ToList(),
+        no.CreatedAt)).ToList().FirstOrDefault();
+
+    return Results.Created($"api/order/{newOrder.Id}", newOrderDto);
 }).RequireAuthorization();
 
 app.MapGet("/api/me", (ClaimsPrincipal user) =>
